@@ -1,0 +1,112 @@
+#!/bin/bash
+# /etc/init.d/ark
+#
+### BEGIN INIT INFO
+# Provides:   ark
+# Required-Start: $local_fs $remote_fs screen-cleanup
+# Required-Stop:  $local_fs $remote_fs
+# Should-Start:   $network
+# Should-Stop:    $network
+# Default-Start:  2 3 4 5
+# Default-Stop:   0 1 6
+# Short-Description:    Ark server
+# Description:    Starts the ark server
+### END INIT INFO
+
+#Settings
+SERVICE='ShooterGameServ'
+WORLD='TheIsland'
+SCREENNAME='arkserver'
+OPTIONS='?listen?'
+USERNAME='linuxUsername'
+ARKPATH='/home/.../arkserver'
+RELATIVEBINARYPATH='/ShooterGame/Binaries/Linux'
+STEAMPATH='/home/.../steamcmd'
+INVOCATION="./ShooterGameServer $WORLD $OPTIONS" 
+
+ME=`whoami`
+as_user() {
+  if [ "$ME" = "$USERNAME" ] ; then
+    bash -c "$1"
+  else
+    su - "$USERNAME" -c "$1"
+  fi
+}
+
+ark_start() {
+  if  pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "$SERVICE is already running!"
+  else
+    echo "Starting $SERVICE..."
+    cd $ARKPATH
+    as_user "cd $ARKPATH$RELATIVEBINARYPATH && screen -dmS ${SCREENNAME} $INVOCATION"
+    sleep 7
+    if pgrep -u $USERNAME -f $SERVICE > /dev/null
+    then
+      echo "$SERVICE is now running."
+    else
+      echo "Error! Could not start $SERVICE!"
+    fi
+  fi
+}
+ 
+ark_stop() {
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    as_user "pkill -u $USERNAME -f $SERVICE"
+    echo "Stopping $SERVICE"
+    sleep 7
+  else
+    echo "$SERVICE was not running."
+  fi
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "Error! $SERVICE could not be stopped."
+  else
+    echo "$SERVICE is stopped."
+  fi
+} 
+
+ark_update() {
+  if pgrep -u $USERNAME -f $SERVICE > /dev/null
+  then
+    echo "$SERVICE is running! Will not start update."
+  else
+    as_user "cd $STEAMPATH && ./steamcmd.sh +login anonymous +force_install_dir $ARKPATH +app_update 376030 +quit"
+  fi
+}
+
+#Start-Stop here
+case "$1" in
+  start)
+    ark_start
+    ;;
+  stop)
+    ark_stop
+    ;;
+  restart)
+    ark_stop
+    ark_start
+    ;;
+  update)
+    ark_stop
+    ark_update $2
+    ark_start
+    ;;
+  status)
+    if pgrep -u $USERNAME -f $SERVICE > /dev/null
+    then
+      echo "$SERVICE is running."
+    else
+      echo "$SERVICE is not running."
+    fi
+    ;;
+
+  *)
+  echo "Usage: $0 {start|stop|update|status|restart}"
+  exit 1
+  ;;
+esac
+
+exit 0
